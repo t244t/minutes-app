@@ -5,18 +5,24 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-title" content="議事録">
-<title>議事録メーカー</title>
+<title>議事録メーカー｜農・みのり</title>
+<script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
 <style>
   :root{
-    --paper:#f7f5ef;
-    --field:#20402f;      /* 深い畑の緑 */
-    --field-soft:#2f5a41;
-    --ink:#232019;
-    --ink-soft:#6b6558;
-    --line:#ded8c9;
-    --accent:#c68a2e;     /* 実り色（差し色は一箇所だけ） */
+    --paper:#eef1e8;        /* 苗床の光のような、緑みを含む温かい紙色 */
+    --card:#ffffff;
+    --field:#234b37;        /* 深い畑の緑（基調） */
+    --field-2:#356049;      /* 押下・ホバー用の明るい緑 */
+    --ink:#1e1c17;          /* 温かみのある黒 */
+    --ink-soft:#6e6a5e;
+    --line:#d8d4c5;
+    --gold:#be8a2c;         /* 実りのゴールド（差し色は一点だけ） */
     --ok:#2f7d4f;
+    --ok-bg:#e6f0e9;
     --err:#a8331f;
+    --err-bg:#f6e6e2;
+    --busy-bg:#fbfaf5;
+    --radius:14px;
   }
   *{box-sizing:border-box}
   html,body{margin:0}
@@ -26,158 +32,317 @@
     font-family:-apple-system,"Hiragino Sans","Noto Sans JP",system-ui,sans-serif;
     line-height:1.7;
     -webkit-text-size-adjust:100%;
+    padding-bottom:calc(env(safe-area-inset-bottom) + 96px); /* 固定ボタンの逃げ */
   }
-  .wrap{max-width:640px;margin:0 auto;padding:0 18px calc(env(safe-area-inset-bottom) + 40px)}
+  .wrap{max-width:640px;margin:0 auto;padding:0 18px}
+
   header{
     background:var(--field);
     color:var(--paper);
-    padding:calc(env(safe-area-inset-top) + 22px) 0 22px;
-    margin-bottom:22px;
+    padding:calc(env(safe-area-inset-top) + 20px) 0 18px;
   }
-  header .wrap{padding-bottom:0}
-  h1{font-size:22px;font-weight:700;margin:0;letter-spacing:.02em}
-  header p{margin:6px 0 0;font-size:13px;color:#cdd8cf}
+  header .wrap{display:flex;align-items:baseline;justify-content:space-between;gap:10px}
+  .brand{display:flex;flex-direction:column}
+  h1{font-size:21px;font-weight:700;margin:0;letter-spacing:.02em}
+  .brand small{font-size:12px;color:#c3d2c7;margin-top:2px}
+  #greet{font-size:12px;color:#c3d2c7;white-space:nowrap}
 
-  label{display:block;font-size:13px;color:var(--ink-soft);margin:18px 0 6px}
-  input[type=text],textarea{
-    width:100%;
-    font:inherit;
-    color:var(--ink);
-    background:#fff;
-    border:1px solid var(--line);
-    border-radius:10px;
-    padding:12px 14px;
-  }
-  input[type=text]:focus,textarea:focus{
-    outline:none;
-    border-color:var(--field-soft);
-    box-shadow:0 0 0 3px rgba(47,90,65,.12);
-  }
-  textarea{min-height:44vh;resize:vertical}
-  .row{display:flex;gap:12px}
-  .row>div{flex:1;min-width:0}
+  main{padding-top:20px}
 
-  .actions{margin-top:24px}
-  button{
-    width:100%;
-    font:inherit;font-weight:700;font-size:17px;
-    color:var(--paper);
-    background:var(--field);
-    border:none;border-radius:12px;
-    padding:15px;
-    cursor:pointer;
+  .field-label{display:flex;align-items:center;justify-content:space-between;margin:0 2px 7px}
+  .field-label span{font-size:13px;color:var(--ink-soft)}
+  .count{font-size:12px;color:var(--ink-soft);font-variant-numeric:tabular-nums}
+
+  textarea, input[type=text]{
+    width:100%;font:inherit;font-size:16px;color:var(--ink);
+    background:var(--card);border:1px solid var(--line);border-radius:var(--radius);
+    padding:14px;
+  }
+  textarea{min-height:42vh;resize:vertical;line-height:1.75}
+  textarea:focus, input[type=text]:focus{
+    outline:none;border-color:var(--field-2);box-shadow:0 0 0 3px rgba(53,96,73,.14);
+  }
+
+  .toolbar{display:flex;gap:8px;margin:10px 0 4px}
+  .chip{
+    flex:0 0 auto;font:inherit;font-size:14px;
+    color:var(--field);background:var(--card);
+    border:1px solid var(--line);border-radius:999px;padding:8px 14px;cursor:pointer;
+  }
+  .chip:active{background:#f0efe7}
+
+  details{margin-top:18px;border-top:1px solid var(--line);padding-top:6px}
+  summary{list-style:none;cursor:pointer;font-size:14px;color:var(--field);padding:8px 2px;display:flex;align-items:center;gap:8px}
+  summary::-webkit-details-marker{display:none}
+  summary .caret{transition:transform .2s ease;color:var(--ink-soft)}
+  details[open] summary .caret{transform:rotate(90deg)}
+  .detail-grid{padding:6px 0 4px}
+  .detail-grid label{display:block;font-size:13px;color:var(--ink-soft);margin:12px 0 6px}
+
+  /* 状態表示カード */
+  .status{margin-top:20px;border-radius:var(--radius);padding:16px 18px;display:none;border:1px solid var(--line)}
+  .status.show{display:block}
+  .status .head{display:flex;align-items:center;gap:11px;font-weight:700;font-size:15px}
+  .status .body{font-size:14px;color:var(--ink-soft);margin-top:8px}
+  .status.busy{background:var(--busy-bg)}
+  .status.ok{background:var(--ok-bg);border-color:#bfdcc7}
+  .status.ok .head{color:var(--ok)}
+  .status.err{background:var(--err-bg);border-color:#e6c4bb}
+  .status.err .head{color:var(--err)}
+
+  .spinner{width:18px;height:18px;border-radius:50%;border:2.5px solid rgba(53,96,73,.25);border-top-color:var(--field);animation:spin .8s linear infinite;flex:0 0 auto}
+  @keyframes spin{to{transform:rotate(360deg)}}
+  @media (prefers-reduced-motion:reduce){.spinner{animation:none}}
+
+  .dot{width:11px;height:11px;border-radius:50%;flex:0 0 auto}
+  .dot.ok{background:var(--ok)} .dot.err{background:var(--err)}
+
+  .links{margin-top:12px;display:flex;flex-direction:column;gap:8px}
+  .links a{
+    display:flex;align-items:center;gap:10px;text-decoration:none;
+    color:var(--ink);background:var(--card);border:1px solid var(--line);
+    border-radius:10px;padding:11px 13px;font-size:14px;font-weight:600;
+  }
+  .links a .k{color:var(--gold);font-weight:700}
+  .retry{margin-top:12px}
+
+  /* 下部固定の送信バー */
+  .dock{
+    position:fixed;left:0;right:0;bottom:0;
+    background:linear-gradient(to top, var(--paper) 78%, rgba(238,241,232,0));
+    padding:12px 18px calc(env(safe-area-inset-bottom) + 14px);
+  }
+  .dock .wrap{padding:0}
+  button.primary{
+    width:100%;font:inherit;font-weight:700;font-size:17px;color:var(--paper);
+    background:var(--field);border:none;border-radius:var(--radius);padding:16px;cursor:pointer;
     transition:background .15s ease;
   }
-  button:active{background:var(--field-soft)}
-  button:disabled{background:#9a9384;cursor:default}
-  .hint{font-size:12px;color:var(--ink-soft);margin-top:10px;text-align:center}
-
-  .status{margin-top:18px;padding:14px 16px;border-radius:10px;font-size:14px;display:none}
-  .status.show{display:block}
-  .status.ok{background:#e8f1ea;color:var(--ok);border:1px solid #bfdcc7}
-  .status.err{background:#f6e5e1;color:var(--err);border:1px solid #e6c4bb}
-  .status.busy{background:#fff;color:var(--ink-soft);border:1px solid var(--line)}
-  .accent-bar{height:3px;background:var(--accent);width:44px;border-radius:2px;margin:14px 0 0}
+  button.primary:active{background:var(--field-2)}
+  button.primary:disabled{background:#9a9384;cursor:default}
+  .hint{font-size:11.5px;color:var(--ink-soft);text-align:center;margin:8px 0 0}
 </style>
 </head>
 <body>
 
 <header>
   <div class="wrap">
-    <h1>議事録メーカー</h1>
-    <p>ボイスメモの文字起こしを貼って送るだけ。</p>
+    <div class="brand">
+      <h1>議事録メーカー</h1>
+      <small>農・みのり</small>
+    </div>
+    <span id="greet"></span>
   </div>
 </header>
 
 <main class="wrap">
-  <div class="row">
-    <div>
+  <div class="field-label">
+    <span>文字起こし</span>
+    <span class="count" id="count">0 文字</span>
+  </div>
+  <textarea id="transcript" placeholder="ボイスメモの文字起こしをここに貼り付け"></textarea>
+  <div class="toolbar">
+    <button type="button" class="chip" id="paste">貼り付け</button>
+    <button type="button" class="chip" id="clear">クリア</button>
+  </div>
+
+  <details>
+    <summary><span class="caret">▸</span>会議の詳細（任意）</summary>
+    <div class="detail-grid">
       <label for="title">会議名（空欄なら自動で付きます）</label>
       <input type="text" id="title" placeholder="例：定例ミーティング">
-    </div>
-  </div>
-  <div class="row">
-    <div>
       <label for="place">場所</label>
-      <input type="text" id="place" placeholder="任意">
+      <input type="text" id="place" placeholder="例：会議室A / オンライン">
+      <label for="attendees">出席者（カンマ区切り）</label>
+      <input type="text" id="attendees" placeholder="例：山田, 佐藤">
     </div>
-    <div>
-      <label for="attendees">出席者</label>
-      <input type="text" id="attendees" placeholder="任意（カンマ区切り）">
-    </div>
+  </details>
+
+  <div id="status" class="status">
+    <div class="head"><span id="statusIcon"></span><span id="statusTitle"></span></div>
+    <div class="body" id="statusBody"></div>
+    <div class="links" id="statusLinks"></div>
+    <button type="button" class="chip retry" id="retry" style="display:none">もう一度送る</button>
   </div>
-
-  <label for="transcript">文字起こし</label>
-  <textarea id="transcript" placeholder="ここにボイスメモの文字起こしを貼り付けてください"></textarea>
-
-  <div class="actions">
-    <button id="send">議事録を作成</button>
-    <p class="hint">送信後、1〜2分ほどでLINEに議事録（Doc / PDF / Word）が届きます。</p>
-  </div>
-
-  <div id="status" class="status"></div>
-  <div class="accent-bar"></div>
 </main>
+
+<div class="dock">
+  <div class="wrap">
+    <button class="primary" id="send">議事録を作成</button>
+    <p class="hint">送信後、この画面に進捗が表示されます（LINEにも届きます）。</p>
+  </div>
+</div>
 
 <script>
   // ============================================================
-  // 設定：ここ2つを自分の値に書き換えてください
+  // 設定：この3つを自分の値に
   // ------------------------------------------------------------
-  // 1) GASを「ウェブアプリ」としてデプロイして得られる /exec のURL
   const WEBAPP_URL = 'https://script.google.com/macros/s/AKfycbwWeMBLJe4KuxfVvKu8fVAD0_wszEoxPvm7X_FZyFd72Op5URUGi6FMRNHwCOuQKeOXmA/exec';
-  // 2) 共有シークレット。GASのプロパティ WEBAPP_SHARED_SECRET と同じ文字列。
-  //    空 '' にすると合言葉チェックをスキップします（GASのプロパティも削除しておくこと）。
+  // LIFF ID（LINE Developersで取得したら入れる。空ならLIFFなしで通常動作）
+  const LIFF_ID = '';
+  // 共有シークレット（GASのプロパティと一致させる。空ならチェックなし）
   const SHARED_SECRET = '';
   // ============================================================
 
   const $ = (id) => document.getElementById(id);
-  const btn = $('send');
+  const ta = $('transcript');
   const statusEl = $('status');
+  const sendBtn = $('send');
+  let liffProfile = null;
 
-  function setStatus(kind, text){
-    statusEl.className = 'status show ' + kind;
-    statusEl.textContent = text;
+  // ---- 文字数カウント ----
+  const updateCount = () => { $('count').textContent = ta.value.length.toLocaleString() + ' 文字'; };
+  ta.addEventListener('input', updateCount);
+
+  // ---- 貼り付け / クリア ----
+  $('paste').addEventListener('click', async () => {
+    try {
+      const t = await navigator.clipboard.readText();
+      if (t) { ta.value = t; updateCount(); ta.focus(); }
+    } catch (e) {
+      // 権限がない/未対応のときは手動貼り付けを促す
+      alert('自動貼り付けができませんでした。テキスト欄を長押しして「ペースト」してください。');
+    }
+  });
+  $('clear').addEventListener('click', () => { ta.value=''; updateCount(); ta.focus(); });
+
+  // ---- LIFF 初期化（IDがあるときだけ） ----
+  (async function initLiff(){
+    if (!LIFF_ID || !window.liff) return;
+    try {
+      await liff.init({ liffId: LIFF_ID });
+      if (!liff.isLoggedIn()) { liff.login(); return; }
+      const p = await liff.getProfile();
+      liffProfile = { userId: p.userId, displayName: p.displayName };
+      $('greet').textContent = p.displayName + ' さん';
+    } catch (e) {
+      console.warn('LIFF init failed', e);
+    }
+  })();
+
+  // ---- 状態表示ヘルパー ----
+  function showBusy(title, body){
+    statusEl.className = 'status show busy';
+    $('statusIcon').outerHTML = '<span id="statusIcon" class="spinner"></span>';
+    $('statusTitle').textContent = title;
+    $('statusBody').textContent = body || '';
+    $('statusLinks').innerHTML = '';
+    $('retry').style.display = 'none';
+  }
+  function showDone(res){
+    statusEl.className = 'status show ok';
+    $('statusIcon').outerHTML = '<span id="statusIcon" class="dot ok"></span>';
+    $('statusTitle').textContent = '議事録ができました';
+    $('statusBody').textContent = 'LINEにも通知を送りました。';
+    const links = [];
+    if (res.docUrl)  links.push(['Doc', res.docUrl]);
+    if (res.pdfUrl)  links.push(['PDF', res.pdfUrl]);
+    if (res.docxUrl) links.push(['Word', res.docxUrl]);
+    $('statusLinks').innerHTML = links.map(l =>
+      `<a href="${l[1]}" target="_blank" rel="noopener"><span class="k">${l[0]}</span>を開く</a>`
+    ).join('');
+    $('retry').style.display = '';
+  }
+  function showError(msg){
+    statusEl.className = 'status show err';
+    $('statusIcon').outerHTML = '<span id="statusIcon" class="dot err"></span>';
+    $('statusTitle').textContent = '生成に失敗しました';
+    // Gemini混雑(503)などをそのまま見せる
+    $('statusBody').textContent = /高需要|503|UNAVAILABLE|high demand/i.test(msg||'')
+      ? 'Geminiが混み合っています。少し待って「もう一度送る」を押してください。'
+      : (msg || '時間をおいて、もう一度お試しください。');
+    $('statusLinks').innerHTML = '';
+    $('retry').style.display = '';
+  }
+  function showFallback(){
+    statusEl.className = 'status show busy';
+    $('statusIcon').outerHTML = '<span id="statusIcon" class="dot ok"></span>';
+    $('statusTitle').textContent = '送信しました';
+    $('statusBody').textContent = '進捗の取得はできませんでしたが、送信は完了しています。1〜2分後にLINEをご確認ください。';
+    $('statusLinks').innerHTML = '';
+    $('retry').style.display = '';
   }
 
-  btn.addEventListener('click', async () => {
-    const transcript = $('transcript').value.trim();
-    if (!transcript){
-      setStatus('err', '文字起こしが空です。テキストを貼り付けてください。');
-      return;
+  // ---- JSONPでステータス取得（CORS回避） ----
+  function jsonpGet(params){
+    return new Promise(resolve => {
+      const cbName = 'cb_' + Math.random().toString(36).slice(2);
+      let s, done = false;
+      const finish = (val) => { if (done) return; done = true; try{ delete window[cbName]; }catch(_){}
+        if (s && s.parentNode) s.parentNode.removeChild(s); clearTimeout(timer); resolve(val); };
+      const timer = setTimeout(() => finish(null), 5000);
+      window[cbName] = (data) => finish(data);
+      const q = new URLSearchParams(Object.assign({ callback: cbName }, params)).toString();
+      s = document.createElement('script');
+      s.src = WEBAPP_URL + '?' + q;
+      s.onerror = () => finish(null);
+      document.body.appendChild(s);
+    });
+  }
+  const sleep = (ms) => new Promise(r => setTimeout(r, ms));
+
+  async function pollStatus(jobId){
+    const start = Date.now();
+    let invalid = 0;
+    while (Date.now() - start < 120000){       // 最長2分
+      const res = await jsonpGet({ jobId });
+      if (!res || typeof res.state === 'undefined' && typeof res.found === 'undefined'){
+        if (++invalid >= 4){ showFallback(); return; }   // 旧doGet等で応答が取れない場合
+      } else {
+        invalid = 0;
+        if (!res.found)                showBusy('受け付けました', '処理の順番を待っています…');
+        else if (res.state === 'queued')     showBusy('受け付けました', '処理の順番を待っています…');
+        else if (res.state === 'processing') showBusy('作成中', 'Geminiで議事録を生成しています…');
+        else if (res.state === 'done')       { showDone(res); return; }
+        else if (res.state === 'error')      { showError(res.status); return; }
+      }
+      await sleep(3000);
     }
+    showFallback();
+  }
 
-    const payload = {
-      secret: SHARED_SECRET,
-      title: $('title').value.trim(),
-      place: $('place').value.trim(),
-      attendees: $('attendees').value.trim(),
-      transcript: transcript
-    };
-
-    btn.disabled = true;
-    setStatus('busy', '送信しています…');
-
+  // ---- 送信 ----
+  let lastPayload = null;
+  async function submit(payload){
+    sendBtn.disabled = true;
+    showBusy('送信中', '');
     try {
-      // GASウェブアプリはCORSプリフライトを扱えないため、
-      // text/plain + no-cors で「送るだけ」にする（結果はLINE/スプレッドシートで確認）
       await fetch(WEBAPP_URL, {
-        method: 'POST',
-        mode: 'no-cors',
+        method: 'POST', mode: 'no-cors',
         headers: { 'Content-Type': 'text/plain;charset=utf-8' },
         body: JSON.stringify(payload)
       });
-
-      setStatus('ok', '受け付けました。1〜2分ほどでLINEに議事録が届きます。この画面は閉じて大丈夫です。');
-      $('transcript').value = '';
-      $('title').value = '';
-      $('place').value = '';
-      $('attendees').value = '';
+      pollStatus(payload.jobId);   // 進捗の追跡を開始
     } catch (e) {
-      setStatus('err', '送信に失敗しました。通信環境とURL設定を確認して、もう一度お試しください。');
+      showError('送信に失敗しました。通信環境を確認してください。');
     } finally {
-      btn.disabled = false;
+      sendBtn.disabled = false;
     }
+  }
+
+  sendBtn.addEventListener('click', () => {
+    const transcript = ta.value.trim();
+    if (!transcript){ showError('文字起こしが空です。テキストを貼り付けてください。'); return; }
+    const jobId = (crypto.randomUUID && crypto.randomUUID()) || (Date.now()+'-'+Math.random().toString(36).slice(2));
+    lastPayload = {
+      jobId, secret: SHARED_SECRET,
+      title: $('title').value.trim(),
+      place: $('place').value.trim(),
+      attendees: $('attendees').value.trim(),
+      transcript,
+      userId: liffProfile ? liffProfile.userId : '',
+      displayName: liffProfile ? liffProfile.displayName : ''
+    };
+    submit(lastPayload);
   });
+
+  $('retry').addEventListener('click', () => {
+    if (!lastPayload) return;
+    lastPayload.jobId = (crypto.randomUUID && crypto.randomUUID()) || (Date.now()+'-'+Math.random().toString(36).slice(2));
+    submit(lastPayload);
+  });
+
+  updateCount();
 </script>
 
 </body>

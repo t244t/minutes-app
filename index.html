@@ -1,0 +1,184 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="議事録">
+<title>議事録メーカー</title>
+<style>
+  :root{
+    --paper:#f7f5ef;
+    --field:#20402f;      /* 深い畑の緑 */
+    --field-soft:#2f5a41;
+    --ink:#232019;
+    --ink-soft:#6b6558;
+    --line:#ded8c9;
+    --accent:#c68a2e;     /* 実り色（差し色は一箇所だけ） */
+    --ok:#2f7d4f;
+    --err:#a8331f;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0}
+  body{
+    background:var(--paper);
+    color:var(--ink);
+    font-family:-apple-system,"Hiragino Sans","Noto Sans JP",system-ui,sans-serif;
+    line-height:1.7;
+    -webkit-text-size-adjust:100%;
+  }
+  .wrap{max-width:640px;margin:0 auto;padding:0 18px calc(env(safe-area-inset-bottom) + 40px)}
+  header{
+    background:var(--field);
+    color:var(--paper);
+    padding:calc(env(safe-area-inset-top) + 22px) 0 22px;
+    margin-bottom:22px;
+  }
+  header .wrap{padding-bottom:0}
+  h1{font-size:22px;font-weight:700;margin:0;letter-spacing:.02em}
+  header p{margin:6px 0 0;font-size:13px;color:#cdd8cf}
+
+  label{display:block;font-size:13px;color:var(--ink-soft);margin:18px 0 6px}
+  input[type=text],textarea{
+    width:100%;
+    font:inherit;
+    color:var(--ink);
+    background:#fff;
+    border:1px solid var(--line);
+    border-radius:10px;
+    padding:12px 14px;
+  }
+  input[type=text]:focus,textarea:focus{
+    outline:none;
+    border-color:var(--field-soft);
+    box-shadow:0 0 0 3px rgba(47,90,65,.12);
+  }
+  textarea{min-height:44vh;resize:vertical}
+  .row{display:flex;gap:12px}
+  .row>div{flex:1;min-width:0}
+
+  .actions{margin-top:24px}
+  button{
+    width:100%;
+    font:inherit;font-weight:700;font-size:17px;
+    color:var(--paper);
+    background:var(--field);
+    border:none;border-radius:12px;
+    padding:15px;
+    cursor:pointer;
+    transition:background .15s ease;
+  }
+  button:active{background:var(--field-soft)}
+  button:disabled{background:#9a9384;cursor:default}
+  .hint{font-size:12px;color:var(--ink-soft);margin-top:10px;text-align:center}
+
+  .status{margin-top:18px;padding:14px 16px;border-radius:10px;font-size:14px;display:none}
+  .status.show{display:block}
+  .status.ok{background:#e8f1ea;color:var(--ok);border:1px solid #bfdcc7}
+  .status.err{background:#f6e5e1;color:var(--err);border:1px solid #e6c4bb}
+  .status.busy{background:#fff;color:var(--ink-soft);border:1px solid var(--line)}
+  .accent-bar{height:3px;background:var(--accent);width:44px;border-radius:2px;margin:14px 0 0}
+</style>
+</head>
+<body>
+
+<header>
+  <div class="wrap">
+    <h1>議事録メーカー</h1>
+    <p>ボイスメモの文字起こしを貼って送るだけ。</p>
+  </div>
+</header>
+
+<main class="wrap">
+  <div class="row">
+    <div>
+      <label for="title">会議名（空欄なら自動で付きます）</label>
+      <input type="text" id="title" placeholder="例：定例ミーティング">
+    </div>
+  </div>
+  <div class="row">
+    <div>
+      <label for="place">場所</label>
+      <input type="text" id="place" placeholder="任意">
+    </div>
+    <div>
+      <label for="attendees">出席者</label>
+      <input type="text" id="attendees" placeholder="任意（カンマ区切り）">
+    </div>
+  </div>
+
+  <label for="transcript">文字起こし</label>
+  <textarea id="transcript" placeholder="ここにボイスメモの文字起こしを貼り付けてください"></textarea>
+
+  <div class="actions">
+    <button id="send">議事録を作成</button>
+    <p class="hint">送信後、1〜2分ほどでLINEに議事録（Doc / PDF / Word）が届きます。</p>
+  </div>
+
+  <div id="status" class="status"></div>
+  <div class="accent-bar"></div>
+</main>
+
+<script>
+  // ============================================================
+  // 設定：ここ2つを自分の値に書き換えてください
+  // ------------------------------------------------------------
+  // 1) GASを「ウェブアプリ」としてデプロイして得られる /exec のURL
+  const WEBAPP_URL = 'ここにGASウェブアプリのURL(.../exec)を貼る';
+  // 2) GASのスクリプトプロパティ WEBAPP_SHARED_SECRET と同じ文字列
+  //    （GitHub Pagesは公開ソースのため強固な秘匿ではありません。想定外の第三者送信を軽く防ぐ用途です）
+  const SHARED_SECRET = 'ここに共有シークレットを貼る';
+  // ============================================================
+
+  const $ = (id) => document.getElementById(id);
+  const btn = $('send');
+  const statusEl = $('status');
+
+  function setStatus(kind, text){
+    statusEl.className = 'status show ' + kind;
+    statusEl.textContent = text;
+  }
+
+  btn.addEventListener('click', async () => {
+    const transcript = $('transcript').value.trim();
+    if (!transcript){
+      setStatus('err', '文字起こしが空です。テキストを貼り付けてください。');
+      return;
+    }
+
+    const payload = {
+      secret: SHARED_SECRET,
+      title: $('title').value.trim(),
+      place: $('place').value.trim(),
+      attendees: $('attendees').value.trim(),
+      transcript: transcript
+    };
+
+    btn.disabled = true;
+    setStatus('busy', '送信しています…');
+
+    try {
+      // GASウェブアプリはCORSプリフライトを扱えないため、
+      // text/plain + no-cors で「送るだけ」にする（結果はLINE/スプレッドシートで確認）
+      await fetch(WEBAPP_URL, {
+        method: 'POST',
+        mode: 'no-cors',
+        headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+        body: JSON.stringify(payload)
+      });
+
+      setStatus('ok', '受け付けました。1〜2分ほどでLINEに議事録が届きます。この画面は閉じて大丈夫です。');
+      $('transcript').value = '';
+      $('title').value = '';
+      $('place').value = '';
+      $('attendees').value = '';
+    } catch (e) {
+      setStatus('err', '送信に失敗しました。通信環境とURL設定を確認して、もう一度お試しください。');
+    } finally {
+      btn.disabled = false;
+    }
+  });
+</script>
+
+</body>
+</html>

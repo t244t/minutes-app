@@ -9,66 +9,53 @@
 <script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
 <style>
   :root{
-    --paper:#eef1e8;        /* 苗床の光のような、緑みを含む温かい紙色 */
-    --card:#ffffff;
-    --field:#234b37;        /* 深い畑の緑（基調） */
-    --field-2:#356049;      /* 押下・ホバー用の明るい緑 */
-    --ink:#1e1c17;          /* 温かみのある黒 */
-    --ink-soft:#6e6a5e;
-    --line:#d8d4c5;
-    --gold:#be8a2c;         /* 実りのゴールド（差し色は一点だけ） */
-    --ok:#2f7d4f;
-    --ok-bg:#e6f0e9;
-    --err:#a8331f;
-    --err-bg:#f6e6e2;
-    --busy-bg:#fbfaf5;
-    --radius:14px;
+    --paper:#eef1e8; --card:#ffffff; --field:#234b37; --field-2:#356049;
+    --ink:#1e1c17; --ink-soft:#6e6a5e; --line:#d8d4c5; --gold:#be8a2c;
+    --ok:#2f7d4f; --ok-bg:#e6f0e9; --err:#a8331f; --err-bg:#f6e6e2;
+    --rec:#c0392b; --busy-bg:#fbfaf5; --radius:14px;
   }
-  *{box-sizing:border-box}
-  html,body{margin:0}
+  *{box-sizing:border-box} html,body{margin:0}
   body{
-    background:var(--paper);
-    color:var(--ink);
+    background:var(--paper); color:var(--ink);
     font-family:-apple-system,"Hiragino Sans","Noto Sans JP",system-ui,sans-serif;
-    line-height:1.7;
-    -webkit-text-size-adjust:100%;
-    padding-bottom:calc(env(safe-area-inset-bottom) + 96px); /* 固定ボタンの逃げ */
+    line-height:1.7; -webkit-text-size-adjust:100%;
+    padding-bottom:calc(env(safe-area-inset-bottom) + 96px);
   }
   .wrap{max-width:640px;margin:0 auto;padding:0 18px}
-
-  header{
-    background:var(--field);
-    color:var(--paper);
-    padding:calc(env(safe-area-inset-top) + 20px) 0 18px;
-  }
+  header{background:var(--field);color:var(--paper);padding:calc(env(safe-area-inset-top) + 20px) 0 18px}
   header .wrap{display:flex;align-items:baseline;justify-content:space-between;gap:10px}
   .brand{display:flex;flex-direction:column}
   h1{font-size:21px;font-weight:700;margin:0;letter-spacing:.02em}
   .brand small{font-size:12px;color:#c3d2c7;margin-top:2px}
   #greet{font-size:12px;color:#c3d2c7;white-space:nowrap}
-
   main{padding-top:20px}
+
+  /* 録音カード */
+  .rec-card{background:var(--card);border:1px solid var(--line);border-radius:var(--radius);padding:20px 18px;text-align:center}
+  .rec-btn{
+    width:100%;font:inherit;font-size:17px;font-weight:700;color:#fff;background:var(--rec);
+    border:none;border-radius:var(--radius);padding:16px;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:10px;
+    transition:background .15s ease;
+  }
+  .rec-btn:active{filter:brightness(.94)}
+  .rec-btn.recording{background:#8e2a1e}
+  .rec-btn .icon{width:14px;height:14px;border-radius:50%;background:#fff;flex:0 0 auto}
+  .rec-btn.recording .icon{border-radius:2px;animation:pulse 1.1s ease-in-out infinite}
+  @keyframes pulse{50%{opacity:.35}}
+  @media (prefers-reduced-motion:reduce){.rec-btn.recording .icon{animation:none}}
+  .rec-note{font-size:11.5px;color:var(--ink-soft);margin:10px 0 0}
+
+  .or{display:flex;align-items:center;gap:12px;color:var(--ink-soft);font-size:12px;margin:18px 2px}
+  .or::before,.or::after{content:"";height:1px;background:var(--line);flex:1}
 
   .field-label{display:flex;align-items:center;justify-content:space-between;margin:0 2px 7px}
   .field-label span{font-size:13px;color:var(--ink-soft)}
   .count{font-size:12px;color:var(--ink-soft);font-variant-numeric:tabular-nums}
-
-  textarea, input[type=text]{
-    width:100%;font:inherit;font-size:16px;color:var(--ink);
-    background:var(--card);border:1px solid var(--line);border-radius:var(--radius);
-    padding:14px;
-  }
-  textarea{min-height:42vh;resize:vertical;line-height:1.75}
-  textarea:focus, input[type=text]:focus{
-    outline:none;border-color:var(--field-2);box-shadow:0 0 0 3px rgba(53,96,73,.14);
-  }
-
+  textarea,input[type=text]{width:100%;font:inherit;font-size:16px;color:var(--ink);background:var(--card);border:1px solid var(--line);border-radius:var(--radius);padding:14px}
+  textarea{min-height:32vh;resize:vertical;line-height:1.75}
+  textarea:focus,input[type=text]:focus{outline:none;border-color:var(--field-2);box-shadow:0 0 0 3px rgba(53,96,73,.14)}
   .toolbar{display:flex;gap:8px;margin:10px 0 4px}
-  .chip{
-    flex:0 0 auto;font:inherit;font-size:14px;
-    color:var(--field);background:var(--card);
-    border:1px solid var(--line);border-radius:999px;padding:8px 14px;cursor:pointer;
-  }
+  .chip{flex:0 0 auto;font:inherit;font-size:14px;color:var(--field);background:var(--card);border:1px solid var(--line);border-radius:999px;padding:8px 14px;cursor:pointer}
   .chip:active{background:#f0efe7}
 
   details{margin-top:18px;border-top:1px solid var(--line);padding-top:6px}
@@ -79,45 +66,26 @@
   .detail-grid{padding:6px 0 4px}
   .detail-grid label{display:block;font-size:13px;color:var(--ink-soft);margin:12px 0 6px}
 
-  /* 状態表示カード */
   .status{margin-top:20px;border-radius:var(--radius);padding:16px 18px;display:none;border:1px solid var(--line)}
   .status.show{display:block}
   .status .head{display:flex;align-items:center;gap:11px;font-weight:700;font-size:15px}
   .status .body{font-size:14px;color:var(--ink-soft);margin-top:8px}
   .status.busy{background:var(--busy-bg)}
-  .status.ok{background:var(--ok-bg);border-color:#bfdcc7}
-  .status.ok .head{color:var(--ok)}
-  .status.err{background:var(--err-bg);border-color:#e6c4bb}
-  .status.err .head{color:var(--err)}
-
+  .status.ok{background:var(--ok-bg);border-color:#bfdcc7}.status.ok .head{color:var(--ok)}
+  .status.err{background:var(--err-bg);border-color:#e6c4bb}.status.err .head{color:var(--err)}
   .spinner{width:18px;height:18px;border-radius:50%;border:2.5px solid rgba(53,96,73,.25);border-top-color:var(--field);animation:spin .8s linear infinite;flex:0 0 auto}
   @keyframes spin{to{transform:rotate(360deg)}}
   @media (prefers-reduced-motion:reduce){.spinner{animation:none}}
-
   .dot{width:11px;height:11px;border-radius:50%;flex:0 0 auto}
-  .dot.ok{background:var(--ok)} .dot.err{background:var(--err)}
-
+  .dot.ok{background:var(--ok)}.dot.err{background:var(--err)}
   .links{margin-top:12px;display:flex;flex-direction:column;gap:8px}
-  .links a{
-    display:flex;align-items:center;gap:10px;text-decoration:none;
-    color:var(--ink);background:var(--card);border:1px solid var(--line);
-    border-radius:10px;padding:11px 13px;font-size:14px;font-weight:600;
-  }
+  .links a{display:flex;align-items:center;gap:10px;text-decoration:none;color:var(--ink);background:var(--card);border:1px solid var(--line);border-radius:10px;padding:11px 13px;font-size:14px;font-weight:600}
   .links a .k{color:var(--gold);font-weight:700}
   .retry{margin-top:12px}
 
-  /* 下部固定の送信バー */
-  .dock{
-    position:fixed;left:0;right:0;bottom:0;
-    background:linear-gradient(to top, var(--paper) 78%, rgba(238,241,232,0));
-    padding:12px 18px calc(env(safe-area-inset-bottom) + 14px);
-  }
+  .dock{position:fixed;left:0;right:0;bottom:0;background:linear-gradient(to top,var(--paper) 78%,rgba(238,241,232,0));padding:12px 18px calc(env(safe-area-inset-bottom) + 14px)}
   .dock .wrap{padding:0}
-  button.primary{
-    width:100%;font:inherit;font-weight:700;font-size:17px;color:var(--paper);
-    background:var(--field);border:none;border-radius:var(--radius);padding:16px;cursor:pointer;
-    transition:background .15s ease;
-  }
+  button.primary{width:100%;font:inherit;font-weight:700;font-size:17px;color:var(--paper);background:var(--field);border:none;border-radius:var(--radius);padding:16px;cursor:pointer;transition:background .15s ease}
   button.primary:active{background:var(--field-2)}
   button.primary:disabled{background:#9a9384;cursor:default}
   .hint{font-size:11.5px;color:var(--ink-soft);text-align:center;margin:8px 0 0}
@@ -127,27 +95,28 @@
 
 <header>
   <div class="wrap">
-    <div class="brand">
-      <h1>議事録メーカー</h1>
-      <small>農・みのり</small>
-    </div>
+    <div class="brand"><h1>議事録メーカー</h1><small>農・みのり</small></div>
     <span id="greet"></span>
   </div>
 </header>
 
 <main class="wrap">
-  <div class="field-label">
-    <span>文字起こし</span>
-    <span class="count" id="count">0 文字</span>
+  <div class="rec-card">
+    <button type="button" class="rec-btn" id="recBtn"><span class="icon"></span><span id="recLabel">録音を開始</span></button>
+    <p class="rec-note">タップで録音開始 / もう一度タップで停止 → そのまま議事録化。<br>短めの会議向け（目安15分程度まで）。録音中は画面を消さないでください。</p>
   </div>
-  <textarea id="transcript" placeholder="ボイスメモの文字起こしをここに貼り付け"></textarea>
+
+  <div class="or">または、文字起こしを貼り付け</div>
+
+  <div class="field-label"><span>文字起こし</span><span class="count" id="count">0 文字</span></div>
+  <textarea id="transcript" placeholder="ボイスメモの文字起こしをここに貼り付け（長い会議はこちら）"></textarea>
   <div class="toolbar">
     <button type="button" class="chip" id="paste">貼り付け</button>
     <button type="button" class="chip" id="clear">クリア</button>
   </div>
 
   <details>
-    <summary><span class="caret">▸</span>会議の詳細（任意）</summary>
+    <summary><span class="caret">▸</span>会議の詳細（任意・録音／貼り付け 共通）</summary>
     <div class="detail-grid">
       <label for="title">会議名（空欄なら自動で付きます）</label>
       <input type="text" id="title" placeholder="例：定例ミーティング">
@@ -168,45 +137,30 @@
 
 <div class="dock">
   <div class="wrap">
-    <button class="primary" id="send">議事録を作成</button>
-    <p class="hint">送信後、この画面に進捗が表示されます（LINEにも届きます）。</p>
+    <button class="primary" id="send">文字起こしから議事録を作成</button>
+    <p class="hint">進捗はこの画面に表示されます（LINEにも届きます）。</p>
   </div>
 </div>
 
 <script>
   // ============================================================
-  // 設定：この3つを自分の値に
-  // ------------------------------------------------------------
   const WEBAPP_URL = 'https://script.google.com/macros/s/AKfycbwWeMBLJe4KuxfVvKu8fVAD0_wszEoxPvm7X_FZyFd72Op5URUGi6FMRNHwCOuQKeOXmA/exec';
-  // LIFF ID（LINE Developersで取得したら入れる。空ならLIFFなしで通常動作）
-  const LIFF_ID = '';
-  // 共有シークレット（GASのプロパティと一致させる。空ならチェックなし）
-  const SHARED_SECRET = '';
+  const LIFF_ID = '';       // LIFF ID（空ならLIFFなしで通常動作）
+  const SHARED_SECRET = ''; // GASのプロパティと一致させる（空ならチェックなし）
   // ============================================================
 
   const $ = (id) => document.getElementById(id);
-  const ta = $('transcript');
-  const statusEl = $('status');
-  const sendBtn = $('send');
+  const ta = $('transcript'), statusEl = $('status'), sendBtn = $('send');
   let liffProfile = null;
 
-  // ---- 文字数カウント ----
   const updateCount = () => { $('count').textContent = ta.value.length.toLocaleString() + ' 文字'; };
   ta.addEventListener('input', updateCount);
-
-  // ---- 貼り付け / クリア ----
   $('paste').addEventListener('click', async () => {
-    try {
-      const t = await navigator.clipboard.readText();
-      if (t) { ta.value = t; updateCount(); ta.focus(); }
-    } catch (e) {
-      // 権限がない/未対応のときは手動貼り付けを促す
-      alert('自動貼り付けができませんでした。テキスト欄を長押しして「ペースト」してください。');
-    }
+    try { const t = await navigator.clipboard.readText(); if (t){ ta.value=t; updateCount(); ta.focus(); } }
+    catch (e) { alert('自動貼り付けができませんでした。テキスト欄を長押しして「ペースト」してください。'); }
   });
   $('clear').addEventListener('click', () => { ta.value=''; updateCount(); ta.focus(); });
 
-  // ---- LIFF 初期化（IDがあるときだけ） ----
   (async function initLiff(){
     if (!LIFF_ID || !window.liff) return;
     try {
@@ -215,135 +169,147 @@
       const p = await liff.getProfile();
       liffProfile = { userId: p.userId, displayName: p.displayName };
       $('greet').textContent = p.displayName + ' さん';
-    } catch (e) {
-      console.warn('LIFF init failed', e);
-    }
+    } catch (e) { console.warn('LIFF init failed', e); }
   })();
 
-  // ---- 状態表示ヘルパー ----
+  // ---------- 状態表示 ----------
   function showBusy(title, body){
-    statusEl.className = 'status show busy';
-    $('statusIcon').outerHTML = '<span id="statusIcon" class="spinner"></span>';
-    $('statusTitle').textContent = title;
-    $('statusBody').textContent = body || '';
-    $('statusLinks').innerHTML = '';
-    $('retry').style.display = 'none';
+    statusEl.className='status show busy';
+    $('statusIcon').outerHTML='<span id="statusIcon" class="spinner"></span>';
+    $('statusTitle').textContent=title; $('statusBody').textContent=body||'';
+    $('statusLinks').innerHTML=''; $('retry').style.display='none';
   }
   function showDone(res){
-    statusEl.className = 'status show ok';
-    $('statusIcon').outerHTML = '<span id="statusIcon" class="dot ok"></span>';
-    $('statusTitle').textContent = '議事録ができました';
-    $('statusBody').textContent = 'LINEにも通知を送りました。';
-    const links = [];
-    if (res.docUrl)  links.push(['Doc', res.docUrl]);
-    if (res.pdfUrl)  links.push(['PDF', res.pdfUrl]);
-    if (res.docxUrl) links.push(['Word', res.docxUrl]);
-    $('statusLinks').innerHTML = links.map(l =>
-      `<a href="${l[1]}" target="_blank" rel="noopener"><span class="k">${l[0]}</span>を開く</a>`
-    ).join('');
-    $('retry').style.display = '';
+    statusEl.className='status show ok';
+    $('statusIcon').outerHTML='<span id="statusIcon" class="dot ok"></span>';
+    $('statusTitle').textContent='議事録ができました';
+    $('statusBody').textContent='LINEにも通知を送りました。';
+    const links=[]; if(res.docUrl)links.push(['Doc',res.docUrl]); if(res.pdfUrl)links.push(['PDF',res.pdfUrl]); if(res.docxUrl)links.push(['Word',res.docxUrl]);
+    $('statusLinks').innerHTML=links.map(l=>`<a href="${l[1]}" target="_blank" rel="noopener"><span class="k">${l[0]}</span>を開く</a>`).join('');
+    $('retry').style.display='';
   }
   function showError(msg){
-    statusEl.className = 'status show err';
-    $('statusIcon').outerHTML = '<span id="statusIcon" class="dot err"></span>';
-    $('statusTitle').textContent = '生成に失敗しました';
-    // Gemini混雑(503)などをそのまま見せる
-    $('statusBody').textContent = /高需要|503|UNAVAILABLE|high demand/i.test(msg||'')
-      ? 'Geminiが混み合っています。少し待って「もう一度送る」を押してください。'
+    statusEl.className='status show err';
+    $('statusIcon').outerHTML='<span id="statusIcon" class="dot err"></span>';
+    $('statusTitle').textContent='うまくいきませんでした';
+    $('statusBody').textContent=
+      /高需要|503|UNAVAILABLE|high demand/i.test(msg||'') ? 'Geminiが混み合っています。少し待って「もう一度送る」を押してください。'
+      : /文字起こし|サイズ/.test(msg||'') ? '音声の文字起こしに失敗しました。録音が長すぎる可能性があります。短く録り直すか、ボイスメモ→貼り付けをお試しください。'
       : (msg || '時間をおいて、もう一度お試しください。');
-    $('statusLinks').innerHTML = '';
-    $('retry').style.display = '';
+    $('statusLinks').innerHTML=''; $('retry').style.display='';
   }
   function showFallback(){
-    statusEl.className = 'status show busy';
-    $('statusIcon').outerHTML = '<span id="statusIcon" class="dot ok"></span>';
-    $('statusTitle').textContent = '送信しました';
-    $('statusBody').textContent = '進捗の取得はできませんでしたが、送信は完了しています。1〜2分後にLINEをご確認ください。';
-    $('statusLinks').innerHTML = '';
-    $('retry').style.display = '';
+    statusEl.className='status show busy';
+    $('statusIcon').outerHTML='<span id="statusIcon" class="dot ok"></span>';
+    $('statusTitle').textContent='送信しました';
+    $('statusBody').textContent='進捗の取得はできませんでしたが、送信は完了しています。1〜2分後にLINEをご確認ください。';
+    $('statusLinks').innerHTML=''; $('retry').style.display='';
   }
 
-  // ---- JSONPでステータス取得（CORS回避） ----
+  // ---------- JSONPポーリング ----------
   function jsonpGet(params){
-    return new Promise(resolve => {
-      const cbName = 'cb_' + Math.random().toString(36).slice(2);
-      let s, done = false;
-      const finish = (val) => { if (done) return; done = true; try{ delete window[cbName]; }catch(_){}
-        if (s && s.parentNode) s.parentNode.removeChild(s); clearTimeout(timer); resolve(val); };
-      const timer = setTimeout(() => finish(null), 5000);
-      window[cbName] = (data) => finish(data);
-      const q = new URLSearchParams(Object.assign({ callback: cbName }, params)).toString();
-      s = document.createElement('script');
-      s.src = WEBAPP_URL + '?' + q;
-      s.onerror = () => finish(null);
+    return new Promise(resolve=>{
+      const cbName='cb_'+Math.random().toString(36).slice(2);
+      let s, done=false;
+      const finish=(v)=>{ if(done)return; done=true; try{delete window[cbName];}catch(_){}
+        if(s&&s.parentNode)s.parentNode.removeChild(s); clearTimeout(timer); resolve(v); };
+      const timer=setTimeout(()=>finish(null),5000);
+      window[cbName]=(data)=>finish(data);
+      const q=new URLSearchParams(Object.assign({callback:cbName},params)).toString();
+      s=document.createElement('script'); s.src=WEBAPP_URL+'?'+q; s.onerror=()=>finish(null);
       document.body.appendChild(s);
     });
   }
-  const sleep = (ms) => new Promise(r => setTimeout(r, ms));
-
+  const sleep=(ms)=>new Promise(r=>setTimeout(r,ms));
   async function pollStatus(jobId){
-    const start = Date.now();
-    let invalid = 0;
-    while (Date.now() - start < 120000){       // 最長2分
-      const res = await jsonpGet({ jobId });
-      if (!res || typeof res.state === 'undefined' && typeof res.found === 'undefined'){
-        if (++invalid >= 4){ showFallback(); return; }   // 旧doGet等で応答が取れない場合
-      } else {
-        invalid = 0;
-        if (!res.found)                showBusy('受け付けました', '処理の順番を待っています…');
-        else if (res.state === 'queued')     showBusy('受け付けました', '処理の順番を待っています…');
-        else if (res.state === 'processing') showBusy('作成中', 'Geminiで議事録を生成しています…');
-        else if (res.state === 'done')       { showDone(res); return; }
-        else if (res.state === 'error')      { showError(res.status); return; }
+    const start=Date.now(); let invalid=0;
+    while(Date.now()-start<180000){ // 音声は文字起こし分だけ長め（最長3分）
+      const res=await jsonpGet({jobId});
+      if(!res || (typeof res.state==='undefined' && typeof res.found==='undefined')){
+        if(++invalid>=4){ showFallback(); return; }
+      }else{
+        invalid=0;
+        if(!res.found) showBusy('受け付けました','処理の順番を待っています…');
+        else if(res.state==='queued') showBusy('受け付けました','処理の順番を待っています…');
+        else if(res.state==='processing') showBusy('作成中', /文字起こし/.test(res.status||'')?'音声を文字起こししています…':'Geminiで議事録を生成しています…');
+        else if(res.state==='done'){ showDone(res); return; }
+        else if(res.state==='error'){ showError(res.status); return; }
       }
       await sleep(3000);
     }
     showFallback();
   }
 
-  // ---- 送信 ----
-  let lastPayload = null;
+  // ---------- 送信（貼り付け・録音 共通） ----------
+  let lastPayload=null;
   async function submit(payload){
-    sendBtn.disabled = true;
-    showBusy('送信中', '');
-    try {
-      await fetch(WEBAPP_URL, {
-        method: 'POST', mode: 'no-cors',
-        headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-        body: JSON.stringify(payload)
-      });
-      pollStatus(payload.jobId);   // 進捗の追跡を開始
-    } catch (e) {
-      showError('送信に失敗しました。通信環境を確認してください。');
-    } finally {
-      sendBtn.disabled = false;
-    }
+    sendBtn.disabled=true; setRecEnabled(false);
+    showBusy(payload.audio?'録音を送信中':'送信中','');
+    try{
+      await fetch(WEBAPP_URL,{method:'POST',mode:'no-cors',headers:{'Content-Type':'text/plain;charset=utf-8'},body:JSON.stringify(payload)});
+      pollStatus(payload.jobId);
+    }catch(e){ showError('送信に失敗しました。通信環境を確認してください。'); }
+    finally{ sendBtn.disabled=false; setRecEnabled(true); }
   }
+  function newJobId(){ return (crypto.randomUUID&&crypto.randomUUID())||(Date.now()+'-'+Math.random().toString(36).slice(2)); }
+  function meta(){ return { title:$('title').value.trim(), place:$('place').value.trim(), attendees:$('attendees').value.trim(),
+    userId:liffProfile?liffProfile.userId:'', displayName:liffProfile?liffProfile.displayName:'', secret:SHARED_SECRET }; }
 
-  sendBtn.addEventListener('click', () => {
-    const transcript = ta.value.trim();
-    if (!transcript){ showError('文字起こしが空です。テキストを貼り付けてください。'); return; }
-    const jobId = (crypto.randomUUID && crypto.randomUUID()) || (Date.now()+'-'+Math.random().toString(36).slice(2));
-    lastPayload = {
-      jobId, secret: SHARED_SECRET,
-      title: $('title').value.trim(),
-      place: $('place').value.trim(),
-      attendees: $('attendees').value.trim(),
-      transcript,
-      userId: liffProfile ? liffProfile.userId : '',
-      displayName: liffProfile ? liffProfile.displayName : ''
+  sendBtn.addEventListener('click', ()=>{
+    const transcript=ta.value.trim();
+    if(!transcript){ showError('文字起こしが空です。テキストを貼り付けるか、録音してください。'); return; }
+    lastPayload=Object.assign({jobId:newJobId(), transcript}, meta());
+    submit(lastPayload);
+  });
+  $('retry').addEventListener('click', ()=>{ if(!lastPayload)return; lastPayload.jobId=newJobId(); submit(lastPayload); });
+
+  // ---------- 録音 ----------
+  let mediaRecorder=null, chunks=[], recording=false, recTimer=null, recStart=0;
+  const recBtn=$('recBtn'), recLabel=$('recLabel');
+  function setRecEnabled(on){ recBtn.disabled=!on; recBtn.style.opacity=on?'1':'.6'; }
+  function fmt(ms){ const s=Math.floor(ms/1000); return String(Math.floor(s/60)).padStart(2,'0')+':'+String(s%60).padStart(2,'0'); }
+  function tick(){ recLabel.textContent='停止（'+fmt(Date.now()-recStart)+'）'; }
+  function pickMime(){
+    const c=['audio/mp4','audio/aac','audio/webm;codecs=opus','audio/webm'];
+    for(const m of c){ if(window.MediaRecorder&&MediaRecorder.isTypeSupported&&MediaRecorder.isTypeSupported(m)) return m; }
+    return '';
+  }
+  recBtn.addEventListener('click', async ()=>{
+    if(recording){ stopRec(); return; }
+    if(!navigator.mediaDevices || !window.MediaRecorder){
+      alert('このブラウザは録音に対応していません。Safariで開くか、貼り付けをお使いください。'); return;
+    }
+    try{
+      const stream=await navigator.mediaDevices.getUserMedia({audio:true});
+      const mime=pickMime();
+      mediaRecorder=mime?new MediaRecorder(stream,{mimeType:mime}):new MediaRecorder(stream);
+      chunks=[];
+      mediaRecorder.ondataavailable=(e)=>{ if(e.data&&e.data.size) chunks.push(e.data); };
+      mediaRecorder.onstop=()=>{ stream.getTracks().forEach(t=>t.stop()); handleRecording(); };
+      mediaRecorder.start();
+      recording=true; recStart=Date.now();
+      recBtn.classList.add('recording'); tick(); recTimer=setInterval(tick,1000);
+    }catch(err){
+      console.warn(err);
+      alert('マイクを使えませんでした。LINE内ブラウザでは使えないことがあります。Safariで開くか、貼り付けをお使いください。');
+    }
+  });
+  function stopRec(){ if(mediaRecorder&&recording){ recording=false; clearInterval(recTimer);
+    recBtn.classList.remove('recording'); recLabel.textContent='録音を開始'; mediaRecorder.stop(); } }
+  function handleRecording(){
+    const mime=(mediaRecorder&&mediaRecorder.mimeType)||'audio/mp4';
+    const blob=new Blob(chunks,{type:mime});
+    const mb=blob.size/1048576;
+    if(mb>18 && !confirm('録音が'+mb.toFixed(1)+'MBと大きめです。文字起こしに失敗するかもしれません。このまま送信しますか？（長い会議はボイスメモ→貼り付け推奨）')) return;
+    const reader=new FileReader();
+    reader.onload=()=>{ const b64=String(reader.result).split(',')[1];
+      lastPayload=Object.assign({jobId:newJobId(), audio:b64, audioMime:mime}, meta());
+      submit(lastPayload);
     };
-    submit(lastPayload);
-  });
-
-  $('retry').addEventListener('click', () => {
-    if (!lastPayload) return;
-    lastPayload.jobId = (crypto.randomUUID && crypto.randomUUID()) || (Date.now()+'-'+Math.random().toString(36).slice(2));
-    submit(lastPayload);
-  });
+    reader.readAsDataURL(blob);
+  }
 
   updateCount();
 </script>
-
 </body>
 </html>

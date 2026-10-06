@@ -103,7 +103,8 @@
 <main class="wrap">
   <div class="rec-card">
     <button type="button" class="rec-btn" id="recBtn"><span class="icon"></span><span id="recLabel">録音を開始</span></button>
-    <p class="rec-note">タップで録音開始 / もう一度タップで停止 → そのまま議事録化。<br>短めの会議向け（目安15分程度まで）。録音中は画面を消さないでください。</p>
+    <p class="rec-note">タップで録音開始 / もう一度タップで停止 → そのまま議事録化。<br><b>短い打ち合わせ向け（目安20分まで）。</b>長い会議・研修は iPhoneのボイスメモで録ってください。録音中は画面を消さないでください。</p>
+    <a id="dl" class="chip" download style="display:none;margin-top:14px">録音ファイルを保存</a>
   </div>
 
   <div class="or">または、文字起こしを貼り付け</div>
@@ -296,11 +297,27 @@
   });
   function stopRec(){ if(mediaRecorder&&recording){ recording=false; clearInterval(recTimer);
     recBtn.classList.remove('recording'); recLabel.textContent='録音を開始'; mediaRecorder.stop(); } }
+  let dlUrl=null;
+  function offerDownload(blob, mime){
+    try{
+      if(dlUrl) URL.revokeObjectURL(dlUrl);
+      dlUrl=URL.createObjectURL(blob);
+      const a=$('dl');
+      const ext=mime.indexOf('mp4')>=0?'m4a':mime.indexOf('webm')>=0?'webm':'audio';
+      a.href=dlUrl; a.download='録音_'+Date.now()+'.'+ext; a.style.display='inline-block';
+    }catch(_){}
+  }
   function handleRecording(){
     const mime=(mediaRecorder&&mediaRecorder.mimeType)||'audio/mp4';
     const blob=new Blob(chunks,{type:mime});
     const mb=blob.size/1048576;
-    if(mb>18 && !confirm('録音が'+mb.toFixed(1)+'MBと大きめです。文字起こしに失敗するかもしれません。このまま送信しますか？（長い会議はボイスメモ→貼り付け推奨）')) return;
+    // 停止したら必ず保存リンクを出す（送信が失敗しても音声を失わない）
+    offerDownload(blob, mime);
+    // 大きい録音はブラウザ送信しない（GAS受信上限を超えて消えるのを防ぐ）
+    if(mb>30){
+      showError('録音が大きいため（約'+mb.toFixed(0)+'MB）自動送信はしません。上の「録音ファイルを保存」で音声を残し、ボイスメモの文字起こしを貼り付けるか、音声をDriveの受付フォルダに入れてください。');
+      return;
+    }
     const reader=new FileReader();
     reader.onload=()=>{ const b64=String(reader.result).split(',')[1];
       lastPayload=Object.assign({jobId:newJobId(), audio:b64, audioMime:mime}, meta());

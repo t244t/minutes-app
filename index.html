@@ -44,6 +44,13 @@
   @keyframes pulse{50%{opacity:.35}}
   @media (prefers-reduced-motion:reduce){.rec-btn.recording .icon{animation:none}}
   .rec-note{font-size:11.5px;color:var(--ink-soft);margin:10px 0 0}
+  .file-btn{
+    width:100%;font:inherit;font-size:16px;font-weight:700;color:var(--field);background:var(--card);
+    border:1.5px solid var(--field);border-radius:var(--radius);padding:14px;margin-top:18px;cursor:pointer;
+    display:flex;align-items:center;justify-content:center;gap:8px;
+  }
+  .file-btn:active{background:#eef4fb}
+  .file-btn:disabled{opacity:.6;cursor:default}
 
   .or{display:flex;align-items:center;gap:12px;color:var(--ink-soft);font-size:12px;margin:18px 2px}
   .or::before,.or::after{content:"";height:1px;background:var(--line);flex:1}
@@ -103,8 +110,12 @@
 <main class="wrap">
   <div class="rec-card">
     <button type="button" class="rec-btn" id="recBtn"><span class="icon"></span><span id="recLabel">録音を開始</span></button>
-    <p class="rec-note">タップで録音開始 / もう一度タップで停止 → そのまま議事録化。<br><b>短い打ち合わせ向け（目安20分まで）。</b>長い会議・研修は iPhoneのボイスメモで録ってください。録音中は画面を消さないでください。</p>
+    <p class="rec-note">タップで録音開始 / もう一度タップで停止 → そのまま議事録化。<br><b>短い打ち合わせ向け（目安20分まで）。</b>録音中は画面を消さないでください。</p>
     <a id="dl" class="chip" download style="display:none;margin-top:14px">録音ファイルを保存</a>
+
+    <button type="button" class="file-btn" id="fileBtn"><span aria-hidden="true">📁</span><span>録音ファイルを選んで送る</span></button>
+    <input type="file" id="fileInput" accept="audio/*,.m4a,.mp3,.wav,.aac" hidden>
+    <p class="rec-note">長い会議・研修は iPhoneのボイスメモで録音 →「共有」→「"ファイル"に保存」してから、このボタンで選んでください。<b>目安60分（30MB）まで。</b></p>
   </div>
 
   <div class="or">または、文字起こしを貼り付け</div>
@@ -224,7 +235,7 @@
   const sleep=(ms)=>new Promise(r=>setTimeout(r,ms));
   async function pollStatus(jobId){
     const start=Date.now(); let invalid=0;
-    while(Date.now()-start<180000){ // 音声は文字起こし分だけ長め（最長3分）
+    while(Date.now()-start<480000){ // 長い音声は文字起こし＋議事録作成で時間がかかるため最長8分
       const res=await jsonpGet({jobId});
       if(!res || (typeof res.state==='undefined' && typeof res.found==='undefined')){
         if(++invalid>=4){ showFallback(); return; }
@@ -267,7 +278,7 @@
   // ---------- 録音 ----------
   let mediaRecorder=null, chunks=[], recording=false, recTimer=null, recStart=0;
   const recBtn=$('recBtn'), recLabel=$('recLabel');
-  function setRecEnabled(on){ recBtn.disabled=!on; recBtn.style.opacity=on?'1':'.6'; }
+  function setRecEnabled(on){ recBtn.disabled=!on; recBtn.style.opacity=on?'1':'.6'; const fb=$('fileBtn'); if(fb) fb.disabled=!on; }
   function fmt(ms){ const s=Math.floor(ms/1000); return String(Math.floor(s/60)).padStart(2,'0')+':'+String(s%60).padStart(2,'0'); }
   function tick(){ recLabel.textContent='停止（'+fmt(Date.now()-recStart)+'）'; }
   function pickMime(){
@@ -314,17 +325,54 @@
     // 停止したら必ず保存リンクを出す（送信が失敗しても音声を失わない）
     offerDownload(blob, mime);
     // 大きい録音はブラウザ送信しない（GAS受信上限を超えて消えるのを防ぐ）
-    if(mb>30){
+    if(mb>MAX_AUDIO_MB){
       showError('録音が大きいため（約'+mb.toFixed(0)+'MB）自動送信はしません。上の「録音ファイルを保存」で音声を残し、ボイスメモの文字起こしを貼り付けるか、音声をDriveの受付フォルダに入れてください。');
       return;
     }
+    sendAudioBlob(blob, mime);
+  }
+
+  // ---------- 音声を送る（録音・ファイル選択 共通） ----------
+  const MAX_AUDIO_MB=30; // これを超えるとGASの受信上限（約50MB）を超えるおそれ
+  function normalizeMime(type, name){
+    const ext=String(name||'').split('.').pop().toLowerCase();
+    if(/m4a|mp4|x-m4a|aac/.test(type||'') || ext==='m4a' || ext==='mp4') return 'audio/mp4';
+    if(/mpeg|mp3/.test(type||'') || ext==='mp3') return 'audio/mpeg';
+    if(/wav/.test(type||'') || ext==='wav') return 'audio/wav';
+    if(/webm/.test(type||'') || ext==='webm') return 'audio/webm';
+    if(ext==='aac') return 'audio/aac';
+    return type || 'audio/mp4';
+  }
+  function sendAudioBlob(blob, mime, fileName){
+    showBusy('音声を読み込み中','');
     const reader=new FileReader();
     reader.onload=()=>{ const b64=String(reader.result).split(',')[1];
-      lastPayload=Object.assign({jobId:newJobId(), audio:b64, audioMime:mime}, meta());
+      const m=meta();
+      // 会議名が空でファイル名があれば、ファイル名を仮の会議名にする（GAS側で内容から付け直す）
+      if(!m.title && fileName) m.title=String(fileName).replace(/\.[^.]+$/,'');
+      lastPayload=Object.assign({jobId:newJobId(), audio:b64, audioMime:mime}, m);
       submit(lastPayload);
     };
+    reader.onerror=()=>showError('音声ファイルを読み込めませんでした。もう一度選び直してください。');
     reader.readAsDataURL(blob);
   }
+
+  // ---------- 録音ファイルを選んで送る ----------
+  $('fileBtn').addEventListener('click', ()=>{ $('fileInput').value=''; $('fileInput').click(); });
+  $('fileInput').addEventListener('change', (e)=>{
+    const f=e.target.files&&e.target.files[0];
+    if(!f) return;
+    const mb=f.size/1048576;
+    const mime=normalizeMime(f.type, f.name);
+    if(!/^audio\//.test(mime)){ showError('音声ファイル（m4a・mp3・wav）を選んでください。'); return; }
+    if(mb>MAX_AUDIO_MB){
+      showError('ファイルが大きすぎます（約'+mb.toFixed(0)+'MB）。'+MAX_AUDIO_MB+'MBまで送れます。長い録音は、Googleドライブの録音受付フォルダに入れてください（自動で議事録になります）。');
+      return;
+    }
+    const approxMin=Math.max(1, Math.round(mb/0.48)); // ボイスメモ（圧縮）は約0.5MB/分
+    if(!confirm('「'+f.name+'」（約'+mb.toFixed(1)+'MB・目安'+approxMin+'分）を送って議事録を作りますか？\n長い会議は完成まで数分かかります。')) return;
+    sendAudioBlob(f, mime, f.name);
+  });
 
   updateCount();
 </script>
